@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Code Editor</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            height: 100vh;
+            font-family:Verdana, Geneva, Tahoma, sans-serif;
+        }
+        #controls {
+            display: flex;
+            padding: 10px;
+            gap: 10px;
+            border-bottom: 1px solid #ccc;
+            background: #f8f9fa;
+        }
+        input, button {
+            padding: 5px;
+            border-radius: 20px;
+            background-color: chartreuse;
+        }
+        #editor-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            color:white;
+            background-color:#262626;
+        }
+        #editor {
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid #ccc;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        textarea {
+            flex: 1;
+            width: 100%;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            resize: none;
+            background-color: black;
+            color:white;
+        }
+        iframe {
+            flex: 1;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="text" id="room" placeholder="Enter Room Name">
+        <button id="join-room">Join Room</button>
+    </div>
+    <div id="editor-container">
+        <div id="editor">
+            <textarea id="html-editor" placeholder="Write HTML here..."></textarea>
+            <textarea id="css-editor" placeholder="Write CSS here..."></textarea>
+            <textarea id="js-editor" placeholder="Write JavaScript here..."></textarea>
+        </div>
+        <iframe id="preview"></iframe>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const roomInput = document.getElementById('room');
+        const joinRoomButton = document.getElementById('join-room');
+
+        const htmlEditor = document.getElementById('html-editor');
+        const cssEditor = document.getElementById('css-editor');
+        const jsEditor = document.getElementById('js-editor');
+        const preview = document.getElementById('preview');
+
+        let currentRoom = '';
+
+        // Join Room
+        joinRoomButton.addEventListener('click', () => {
+            const room = roomInput.value.trim();
+            if (room) {
+                currentRoom = room;
+                socket.emit('joinRoom', room);
+                alert('Joined room: ' + room);
+            } else {
+                alert('Please enter a room name.');
+            }
+        });
+
+        // Update preview
+        const updatePreview = () => {
+            const html = htmlEditor.value;
+            const css = '<style>' + cssEditor.value + '</style>';
+            const js = '<script>' + jsEditor.value + '<\/script>';
+            const previewContent = html + css + js;
+            preview.srcdoc = previewContent;
+
+            // Emit changes to server
+            socket.emit('codeChange', {
+                room: currentRoom,
+                html: htmlEditor.value,
+                css: cssEditor.value,
+                js: jsEditor.value,
+            });
+        };
+
+        // Sync local changes
+        [htmlEditor, cssEditor, jsEditor].forEach(editor => {
+            editor.addEventListener('input', updatePreview);
+        });
+
+        // Receive code updates
+        socket.on('codeUpdate', ({ html, css, js }) => {
+            htmlEditor.value = html;
+            cssEditor.value = css;
+            jsEditor.value = js;
+            updatePreview();
+        });
+    </script>
+</body>
+</html>
